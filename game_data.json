@@ -1,0 +1,9 @@
+{
+    "speed": 185,
+    "lap": 2,
+    "position": 4,
+    "current_item": "Mushroom",
+    "enemy_items": ["Red Shell", "Lightning"],
+    "boost_available": true,
+    "track_name": "Rainbow Road"
+}
