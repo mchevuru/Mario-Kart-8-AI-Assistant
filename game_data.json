@@ -6,4 +6,5 @@
     "enemy_items": ["Red Shell", "Lightning"],
     "boost_available": true,
     "track_name": "Rainbow Road"
+
 }
