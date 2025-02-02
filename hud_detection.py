@@ -85,8 +85,8 @@ def fix_ocr_values(text, min_value, max_value, history):
 def save_to_json(lap, coins):
     """Saves lap count and coin count to a JSON file."""
     data = {
-        "Lap": lap,
-        "Coins": coins
+        "lap": lap,
+        "coins": coins
     }
     with open(json_filename, "w") as json_file:
         json.dump(data, json_file, indent=4)
