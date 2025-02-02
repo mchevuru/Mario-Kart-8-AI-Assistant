@@ -9,49 +9,7 @@ import win32con
 
 # Constants
 HUD_JSON_FILE = "hud_data.json"
-STABILITY_THRESHOLD = 5  # How many consecutive readings before confirming a lap change
-lap_readings = deque(maxlen=STABILITY_THRESHOLD)
 
-# Variables for lap timing
-start_time = None
-lap_times = {}
-
-# Load previous lap times from JSON file
-if os.path.exists(HUD_JSON_FILE):
-    with open(HUD_JSON_FILE, "r") as f:
-        try:
-            lap_times = json.load(f)
-        except json.JSONDecodeError:
-            lap_times = {}
-
-def update_lap_time(lap):
-    """Updates lap time when a confirmed lap change occurs"""
-    global start_time
-
-    if start_time is None:  # Start timing from Lap 1
-        start_time = time.time()
-        return
-
-    if lap > 1:  # Only update when moving to Lap 2 or 3
-        elapsed_time = time.time() - start_time
-        lap_times[f"Lap {lap - 1}"] = round(elapsed_time, 2)  # Store previous lap time
-        start_time = time.time()  # Reset timer for next lap
-
-        # Save to JSON file
-        with open(HUD_JSON_FILE, "w") as f:
-            json.dump(lap_times, f, indent=4)
-
-        print(f"[🕒] Lap {lap - 1} time recorded: {elapsed_time:.2f} sec")
-
-def process_lap(lap_ocr):
-    """Processes the lap count and only updates it when stable for 5 readings"""
-    global lap_readings
-
-    lap_readings.append(lap_ocr)
-
-    # Confirm lap change if detected 5 times in a row
-    if len(lap_readings) == STABILITY_THRESHOLD and all(l == lap_ocr for l in lap_readings):
-        update_lap_time(lap_ocr)
 
 # ** Pygame Setup for Overlay **
 pygame.init()
@@ -70,27 +28,21 @@ def load_hud_data():
     try:
         with open(HUD_JSON_FILE, "r") as json_file:
             data = json.load(json_file)
-        return data.get("Lap", "00"), data.get("Coins", "00")
+        return data.get("Lap", "00"), data.get("Coins", "00"), data.get("Position", "00")
     except:
-        return "00", "00"
+        return "00", "00", "00"
     
 # Main loop
 running = True
 while running:
     screen.fill((0, 0, 0, 0))  # Transparent background
 
-    # Load the latest HUD data
-    if os.path.exists(HUD_JSON_FILE):
-        with open(HUD_JSON_FILE, "r") as f:
-            try:
-                lap_times = json.load(f)
-            except json.JSONDecodeError:
-                lap_times = {}
+
 
     # Display lap times
     font = pygame.font.Font(None, 32)
     # Get updated lap & coin data
-    lap, coins = load_hud_data()
+    lap, coins, pos = load_hud_data()
 
     if (lap > 1 & coins >= 8):
         screen.blit("Some message that makes sense", (100, 150))
