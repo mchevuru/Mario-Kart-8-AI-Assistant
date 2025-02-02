@@ -45,6 +45,27 @@ game_state = GameState()
 
 json_file = "game_data.json"
 
+def get_speed(self):
+    return self.speed
+
+def get_lap(self):
+    return self.lap
+
+def get_position(self):
+    return self.position
+
+def get_current_item(self):
+    return self.current_item
+
+def get_enemy_items(self):
+    return self.enemy_items
+
+def is_boost_available(self):
+    return self.boost_available
+
+def get_track_name(self):
+    return self.track_name
+
 while True:
     updated = game_state.update_from_json(json_file)
 
