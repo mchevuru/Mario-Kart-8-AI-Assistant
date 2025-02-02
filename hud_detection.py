@@ -4,7 +4,7 @@ import pytesseract
 import time
 import pygetwindow as gw
 import mss
-import os
+import json
 from collections import deque
 
 # Set up Tesseract OCR
@@ -20,9 +20,8 @@ MAX_LAPS = 3
 coin_history = deque(maxlen=5)
 lap_history = deque(maxlen=5)
 
-# Create output directories for debug images
-os.makedirs("debug_images", exist_ok=True)
-os.makedirs("ocr_debug_images", exist_ok=True)
+# JSON output file
+json_filename = "hud_data.json"
 
 # Find OBS Fullscreen Projector Window
 def get_obs_fullscreen_window():
@@ -48,38 +47,16 @@ def capture_obs_window():
         frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
         return frame
 
-# Preprocessing: Apply Step-by-Step Image Modifications
-def preprocess_image(image, label, frame_counter):
-    """Applies grayscale, exposure reduction, and brightness mask, saving each step."""
-
-    # **Step 1: Original Crop**
-    cv2.imwrite(f"debug_images/{label}_step1_original.png", image)
-
-    # **Step 2: Convert to Grayscale**
+# Preprocessing: Grayscale + Lower Exposure
+def preprocess_image(image):
+    """Applies grayscale conversion and lowers exposure before OCR."""
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    cv2.imwrite(f"debug_images/{label}_step2_grayscale.png", gray)
-
-    # **Step 3: Lower Exposure (Alpha = 0.17, DO NOT CHANGE)**
-    darker = cv2.convertScaleAbs(gray, alpha=0.17, beta=0)
-    cv2.imwrite(f"debug_images/{label}_step3_lower_exposure.png", darker)
-
-    # **Step 4: Create Brightness Mask (Detects Bright Digits)**
-    bright_mask = cv2.inRange(darker, 180, 255)
-    cv2.imwrite(f"debug_images/{label}_step4_brightness_mask.png", bright_mask)
-
-    # **Step 5: Boost Brightness of Detected Digits**
-    enhanced = cv2.addWeighted(darker, 1, bright_mask, 6.0, 0)
-    cv2.imwrite(f"debug_images/{label}_step5_brightness_boost.png", enhanced)
-
-    # **Save the final image OCR will read**
-    ocr_image_path = f"ocr_debug_images/{label}_{frame_counter:05d}.png"
-    cv2.imwrite(ocr_image_path, enhanced)
-
-    return enhanced
+    darker = cv2.convertScaleAbs(gray, alpha=0.17, beta=0)  # Lower exposure
+    return darker
 
 # Extract & Verify OCR Text
 def extract_text(image):
-    """Runs OCR directly on the preprocessed image."""
+    """Runs OCR on the preprocessed grayscale & lowered exposure image."""
     text = pytesseract.image_to_string(image, config=ocr_config).strip()
     return ''.join(filter(str.isdigit, text))  # Keep only numbers
 
@@ -104,8 +81,17 @@ def fix_ocr_values(text, min_value, max_value, history):
     except ValueError:
         return history[-1] if history else str(min_value).zfill(2)  # Use last valid value if available
 
+# Save data to JSON
+def save_to_json(lap, coins):
+    """Saves lap count and coin count to a JSON file."""
+    data = {
+        "Lap": lap,
+        "Coins": coins
+    }
+    with open(json_filename, "w") as json_file:
+        json.dump(data, json_file, indent=4)
+
 # Main Loop
-frame_counter = 0
 while True:
     start_time = time.time()
     frame = capture_obs_window()
@@ -118,9 +104,9 @@ while True:
     coin_counter = frame[-140:-60, 172:257]  # Coins
     lap_counter = frame[-140:-60, 340:390]   # Laps (Corrected)
 
-    # Apply preprocessing (Grayscale + Lower Exposure + Brightness Mask)
-    processed_coin = preprocess_image(coin_counter, "coin", frame_counter)
-    processed_lap = preprocess_image(lap_counter, "lap", frame_counter)
+    # Apply grayscale + lower exposure processing
+    processed_coin = preprocess_image(coin_counter)
+    processed_lap = preprocess_image(lap_counter)
 
     # Run OCR on processed images
     raw_coins = extract_text(processed_coin)
@@ -130,6 +116,9 @@ while True:
     coins = fix_ocr_values(raw_coins, 0, MAX_COINS, coin_history)
     laps = fix_ocr_values(raw_laps, MIN_LAPS, MAX_LAPS, lap_history)
 
+    # Save to JSON
+    save_to_json(laps, coins)
+
     # Print OCR Results
     print(f"[🏎️] Lap: {laps} | [💰] Coins: {coins}")
 
@@ -138,5 +127,4 @@ while True:
     fps = 1 / elapsed_time
     print(f"[⚡] FPS: {fps:.2f}")
 
-    frame_counter += 1
     time.sleep(0.05)  # Reduce CPU Load
